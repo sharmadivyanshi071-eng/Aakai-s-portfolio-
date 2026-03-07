@@ -1,0 +1,36 @@
+import com.google.ai.client.generativeai.GenerativeModel;
+import com.google.ai.client.generativeai.java.GenerativeModelFutures;
+import com.google.ai.client.generativeai.type.Content;
+import com.google.ai.client.generativeai.type.GenerateContentResponse;
+import com.google.common.util.concurrent.FutureCallback;
+import com.google.common.util.concurrent.Futures;
+import com.google.common.util.concurrent.ListenableFuture;
+
+public void askBuddy(String userPrompt) {
+    // 1. Setup the Model (Use "gemini-1.5-flash" for speed)
+    GenerativeModel gm = new GenerativeModel("gemini-1.5-flash", "YOUR_API_KEY_HERE");
+    GenerativeModelFutures model = GenerativeModelFutures.from(gm);
+
+    // 2. Create the prompt
+    Content content = new Content.Builder()
+            .addText(userPrompt)
+            .build();
+
+    // 3. Send the request asynchronously
+    ListenableFuture<GenerateContentResponse> response = model.generateContent(content);
+
+    Futures.addCallback(response, new FutureCallback<GenerateContentResponse>() {
+        @Override
+        public void onSuccess(GenerateContentResponse result) {
+            String buddyReply = result.getText();
+            // Tell Buddy to speak the answer
+            speak(buddyReply); 
+        }
+
+        @Override
+        public void onFailure(Throwable t) {
+            t.printStackTrace();
+            speak("Sorry, my brain is feeling a bit foggy right now.");
+        }
+    }, this.getMainExecutor());
+}
