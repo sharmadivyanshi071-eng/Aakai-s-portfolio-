@@ -1,141 +1,130 @@
-package com.example.buddy; // Make sure this matches your project folder name
+package com.example.buddy;
 
+import android.app.admin.DevicePolicyManager;
+import android.content.ComponentName;
+import android.content.Context;
 import android.content.Intent;
+import android.content.IntentFilter;
+import android.content.pm.ApplicationInfo;
 import android.content.pm.PackageManager;
-import android.net.Uri;
+import android.os.BatteryManager;
 import android.os.Bundle;
 import android.speech.RecognitionListener;
 import android.speech.RecognizerIntent;
 import android.speech.SpeechRecognizer;
 import android.speech.tts.TextToSpeech;
-import android.util.Log;
+import android.telecom.TelecomManager;
+import android.widget.Button;
+import android.widget.TextView;
 import androidx.appcompat.app.AppCompatActivity;
 import java.util.ArrayList;
+import java.util.List;
 import java.util.Locale;
 
 public class MainActivity extends AppCompatActivity {
-
-    // 1. Declare variables at the top
-    private TextToSpeech buddyVoice;
     private SpeechRecognizer speechRecognizer;
-    private Intent speechIntent;
-    private boolean isListeningActive = true;
+    private TextToSpeech tts;
+    private TextView welcomeText;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
 
-        // 2. Initialize Voice (Indian English)
-        buddyVoice = new TextToSpeech(this, status -> {
-            if (status != TextToSpeech.ERROR) {
-                buddyVoice.setLanguage(new Locale("en", "IN"));
-                speak("Hello, I am Buddy. I am ready.");
-            }
+        welcomeText = findViewById(R.id.welcomeText);
+        Button actionButton = findViewById(R.id.actionButton);
+
+        // 1. Initialize Text-to-Speech (Buddy speaks back)
+        tts = new TextToSpeech(this, status -> {
+            if (status != TextToSpeech.ERROR) tts.setLanguage(new Locale("en", "IN"));
         });
 
-        // 3. Prepare the Speech Intent (Offline and Indian English)
-        speechIntent = new Intent(RecognizerIntent.ACTION_RECOGNIZE_SPEECH);
-        speechIntent.putExtra(RecognizerIntent.EXTRA_LANGUAGE, "en-IN");
+        // 2. Initialize Voice Recognition (Buddy listens)
+        speechRecognizer = SpeechRecognizer.createSpeechRecognizer(this);
+        final Intent speechIntent = new Intent(RecognizerIntent.ACTION_RECOGNIZE_SPEECH);
         speechIntent.putExtra(RecognizerIntent.EXTRA_LANGUAGE_MODEL, RecognizerIntent.LANGUAGE_MODEL_FREE_FORM);
-        speechIntent.putExtra(RecognizerIntent.EXTRA_PREFER_OFFLINE, true);
+        speechIntent.putExtra(RecognizerIntent.EXTRA_LANGUAGE, "en-IN");
 
-        // 4. Button to start the loop
-        findViewById(R.id.btn_listen).setOnClickListener(v -> {
-            isListeningActive = true;
-            startListening();
+        actionButton.setOnClickListener(v -> {
+            welcomeText.setText("Listening...");
+            speechRecognizer.startListening(speechIntent);
         });
-    }
 
-    private void startListening() {
-        if (speechRecognizer == null) {
-            speechRecognizer = SpeechRecognizer.createSpeechRecognizer(this);
-        }
-        
         speechRecognizer.setRecognitionListener(new RecognitionListener() {
             @Override
             public void onResults(Bundle results) {
-                ArrayList<String> matches = results.getStringArrayList(SpeechRecognizer.RESULTS_RECOGNITION);
-                if (matches != null && !matches.isEmpty()) {
-                    String command = matches.get(0).toLowerCase();
-
-                    // STOP command
-                    if (command.contains("stop listening") || command.contains("go to sleep")) {
-                        isListeningActive = false;
-                        speak("Okay, stopping now.");
-                        return;
-                    }
-
-                    // WAKE WORD logic
-                    if (isListeningActive && command.contains("hey buddy")) {
-                        handleCommand(command);
-                    }
+                ArrayList<String> data = results.getStringArrayList(SpeechRecognizer.RESULTS_RECOGNITION);
+                if (data != null) {
+                    handleCommand(data.get(0).toLowerCase());
                 }
-                // Restart listening automatically
-                if (isListeningActive) speechRecognizer.startListening(speechIntent);
             }
-
-            @Override
-            public void onError(int error) {
-                if (isListeningActive) speechRecognizer.startListening(speechIntent);
-            }
-
-            // Required empty methods
-            @Override public void onReadyForSpeech(Bundle b) {}
-            @Override public void onBeginningOfSpeech() {}
-            @Override public void onRmsChanged(float r) {}
-            @Override public void onBufferReceived(byte[] b) {}
-            @Override public void onEndOfSpeech() {}
-            @Override public void onPartialResults(Bundle b) {}
-            @Override public void onEvent(int i, Bundle b) {}
+            @Override public void onReadyForSpeech(Bundle b) {} @Override public void onBeginningOfSpeech() {}
+            @Override public void onRmsChanged(float r) {} @Override public void onBufferReceived(byte[] b) {}
+            @Override public void onEndOfSpeech() {} @Override public void onError(int e) { welcomeText.setText("Try again..."); }
+            @Override public void onPartialResults(Bundle p) {} @Override public void onEvent(int t, Bundle b) {}
         });
-        
-        speechRecognizer.startListening(speechIntent);
     }
 
-    private void handleCommand(String command) {
-        if (command.contains("open youtube")) {
-     if (command.contains("pick my phone") || command.contains("answer")) {
-    TelecomManager tm = (TelecomManager) getSystemService(Context.TELECOM_SERVICE);
-    if (tm != null) {
-        tm.acceptRingingCall(); // This answers the call
-    }
-}
-       launchApp("com.google.android.youtube");
-        } else if (command.contains("camera")) {
-            speak("Opening camera.");
-            startActivity(new Intent("android.media.action.IMAGE_CAPTURE"));
-        } else if (command.contains("call")) {
-            speak("Opening the dialer.");
-            startActivity(new Intent(Intent.ACTION_DIAL));
-        } else if (command.contains("portfolio")) {
-            speak("Opening your website.");
-            startActivity(new Intent(Intent.ACTION_VIEW, Uri.parse("https://sharmadivyanshi071-eng.github.io/")));
-        } else if (command.contains("lock") || command.contains("home")) {
-            Intent home = new Intent(Intent.ACTION_MAIN);
-            home.addCategory(Intent.CATEGORY_HOME);
-            home.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
-            startActivity(home);
+    private void handleCommand(String cmd) {
+        if (cmd.contains("battery")) {
+            speak("Your battery is at " + getBatteryLevel());
+        } else if (cmd.contains("lock my phone")) {
+            lockPhone();
+        } else if (cmd.contains("open")) {
+            String appToOpen = cmd.replace("open ", "").trim();
+            openApp(appToOpen);
+        } else if (cmd.contains("pick my phone") || cmd.contains("answer")) {
+            answerCall();
+        } else {
+            speak("I heard " + cmd + ". What else can I do?");
         }
     }
 
-    private void launchApp(String packageName) {
-        Intent intent = getPackageManager().getLaunchIntentForPackage(packageName);
-        if (intent != null) {
+    private String getBatteryLevel() {
+        Intent batteryStatus = registerReceiver(null, new IntentFilter(Intent.ACTION_BATTERY_CHANGED));
+        int level = batteryStatus != null ? batteryStatus.getIntExtra(BatteryManager.EXTRA_LEVEL, -1) : -1;
+        return level + " percent";
+    }
+
+    private void lockPhone() {
+        DevicePolicyManager dpm = (DevicePolicyManager) getSystemService(Context.DEVICE_POLICY_SERVICE);
+        ComponentName admin = new ComponentName(this, DeviceAdmin.class);
+        if (dpm != null && dpm.isAdminActive(admin)) {
+            dpm.lockNow();
+        } else {
+            Intent intent = new Intent(DevicePolicyManager.ACTION_ADD_DEVICE_ADMIN);
+            intent.putExtra(DevicePolicyManager.EXTRA_DEVICE_ADMIN, admin);
             startActivity(intent);
-            speak("Opening it now.");
-        private void openAppByName(String appName) {
-    PackageManager pm = getPackageManager();
-    List<ApplicationInfo> apps = pm.getInstalledApplications(0);
-    for (ApplicationInfo app : apps) {
-        String label = pm.getApplicationLabel(app).toString().toLowerCase();
-        if (label.contains(appName.toLowerCase())) {
-            Intent intent = pm.getLaunchIntentForPackage(app.packageName);
-            startActivity(intent);
-            return;
-        
-    
+        }
+    }
+
+    private void openApp(String name) {
+        PackageManager pm = getPackageManager();
+        List<ApplicationInfo> apps = pm.getInstalledApplications(0);
+        for (ApplicationInfo app : apps) {
+            if (pm.getApplicationLabel(app).toString().toLowerCase().contains(name)) {
+                Intent launchIntent = pm.getLaunchIntentForPackage(app.packageName);
+                if (launchIntent != null) startActivity(launchIntent);
+                return;
+            }
+        }
+        speak("I couldn't find an app named " + name);
+    }
+
+    private void answerCall() {
+        TelecomManager tm = (TelecomManager) getSystemService(Context.TELECOM_SERVICE);
+        try { 
+            if (tm != null) tm.acceptRingingCall(); 
+        } catch (SecurityException e) { 
+            speak("Permission denied for calls."); 
+        }
+    }
+
     private void speak(String text) {
-        buddyVoice.speak(text, TextToSpeech.QUEUE_FLUSH, null, null);
+        welcomeText.setText(text);
+        tts.speak(text, TextToSpeech.QUEUE_FLUSH, null, null);
     }
 }
+
+        
+        
