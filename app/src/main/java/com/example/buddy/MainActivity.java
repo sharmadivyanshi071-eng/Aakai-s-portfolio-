@@ -118,7 +118,25 @@ public class MainActivity extends AppCompatActivity {
         if (intent != null) {
             startActivity(intent);
             speak("Opening it now.");
-        }
+        private void openAppByName(String appName) {
+    PackageManager pm = getPackageManager();
+    List<ApplicationInfo> apps = pm.getInstalledApplications(0);
+    for (ApplicationInfo app : apps) {
+        String label = pm.getApplicationLabel(app).toString().toLowerCase();
+        if (label.contains(appName.toLowerCase())) {
+            Intent intent = pm.getLaunchIntentForPackage(app.packageName);
+            startActivity(intent);
+            return;
+        if (command.contains("pick my phone") || command.contains("answer")) {
+    TelecomManager tm = (TelecomManager) getSystemService(Context.TELECOM_SERVICE);
+    if (tm != null) {
+        tm.acceptRingingCall(); // This answers the call
+    }
+}
+
+    }
+}
+
     }
 
     private void speak(String text) {
