@@ -95,7 +95,13 @@ public class MainActivity extends AppCompatActivity {
 
     private void handleCommand(String command) {
         if (command.contains("open youtube")) {
-            launchApp("com.google.android.youtube");
+     if (command.contains("pick my phone") || command.contains("answer")) {
+    TelecomManager tm = (TelecomManager) getSystemService(Context.TELECOM_SERVICE);
+    if (tm != null) {
+        tm.acceptRingingCall(); // This answers the call
+    }
+}
+       launchApp("com.google.android.youtube");
         } else if (command.contains("camera")) {
             speak("Opening camera.");
             startActivity(new Intent("android.media.action.IMAGE_CAPTURE"));
@@ -127,18 +133,8 @@ public class MainActivity extends AppCompatActivity {
             Intent intent = pm.getLaunchIntentForPackage(app.packageName);
             startActivity(intent);
             return;
-        if (command.contains("pick my phone") || command.contains("answer")) {
-    TelecomManager tm = (TelecomManager) getSystemService(Context.TELECOM_SERVICE);
-    if (tm != null) {
-        tm.acceptRingingCall(); // This answers the call
-    }
-}
-
-    }
-}
-
-    }
-
+        
+    
     private void speak(String text) {
         buddyVoice.speak(text, TextToSpeech.QUEUE_FLUSH, null, null);
     }
