@@ -100,18 +100,24 @@ public class MainActivity extends AppCompatActivity {
             startActivity(cameraIntent);
         }
 
-        // 5. CALLING (Example: "Call 12345")
-        else if (cmd.contains("call")) {
-            String number and name = cmd.replaceAll("[^0-9]", "any name in phone contacts");
-            if(!number.isEmpty()) {
-                speak("Calling " + number + ", Master.");
-                Intent callIntent = new Intent(Intent.ACTION_CALL);
-                callIntent.setData(Uri.parse("tel:" + number));
-                startActivity(callIntent);
-            } else {
-                speak("Master, please tell me the phone number to call.");
-            }
-        }
+        // 5. CALLING (Example:CALL BY NAME COMMAND)
+        // 
+else if (command.contains("call")) {
+    // This removes the word "call" to leave just the name (e.g., "call Mom" -> "Mom")
+    String contactName = command.replace("call", "").trim();
+    
+    if (!contactName.isEmpty()) {
+        speak("Searching for " + contactName + " in your contacts, Master.");
+        
+        // This opens the phone dialer and searches for the name
+        Intent intent = new Intent(Intent.ACTION_VIEW);
+        intent.setData(Uri.parse("tel:" + Uri.encode(contactName)));
+        startActivity(intent);
+    } else {
+        speak("Master, who should I call?");
+    }
+}
+
 
         // 6. OPEN APPS BY NAME (Example: "Open YouTube", "Open WhatsApp")
         else if (cmd.contains("open")) {
