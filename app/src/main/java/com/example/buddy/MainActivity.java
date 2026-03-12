@@ -102,7 +102,7 @@ public class MainActivity extends AppCompatActivity {
 
         // 5. CALLING (Example: "Call 12345")
         else if (cmd.contains("call")) {
-            String number = cmd.replaceAll("[^0-9]", "");
+            String number and name = cmd.replaceAll("[^0-9]", "any name in phone contacts");
             if(!number.isEmpty()) {
                 speak("Calling " + number + ", Master.");
                 Intent callIntent = new Intent(Intent.ACTION_CALL);
