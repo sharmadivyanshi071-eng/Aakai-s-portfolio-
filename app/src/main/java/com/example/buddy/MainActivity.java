@@ -1,13 +1,10 @@
 package com.example.buddy;
 
-import android.Manifest;
+import android.app.Activity;
 import android.app.admin.DevicePolicyManager;
 import android.content.ComponentName;
 import android.content.Context;
 import android.content.Intent;
-import android.content.IntentFilter;
-import android.content.pm.PackageManager;
-import android.net.Uri;
 import android.os.BatteryManager;
 import android.os.Bundle;
 import android.provider.MediaStore;
@@ -15,143 +12,120 @@ import android.speech.RecognizerIntent;
 import android.speech.tts.TextToSpeech;
 import android.widget.Button;
 import android.widget.Toast;
-import androidx.annotation.Nullable;
-import androidx.appcompat.app.AppCompatActivity;
-import androidx.core.app.ActivityCompat;
-import androidx.core.content.ContextCompat;
 
-import java.text.SimpleDateFormat;
 import java.util.ArrayList;
-import java.util.Date;
 import java.util.Locale;
 
-public class MainActivity extends AppCompatActivity {
+public class MainActivity extends Activity {
 
-    private TextToSpeech buddyVoice;
-    private static final int VOICE_CODE = 100;
+    private TextToSpeech tts;
+    private static final int REQUEST_CODE_SPEECH_INPUT = 100;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
 
-        Button btnTalk = findViewById(R.id.btnTalk);
-
-        buddyVoice = new TextToSpeech(this, status -> {
+        // Initialize Voice Output (Buddy's Voice)
+        tts = new TextToSpeech(this, status -> {
             if (status != TextToSpeech.ERROR) {
-                buddyVoice.setLanguage(new Locale("en", "IN"));
-                // This runs as soon as the app starts on your phone
-                speak("Buddy is online. Welcome back, Master.");
+                tts.setLanguage(new Locale("en", "IN")); 
             }
         });
 
-        btnTalk.setOnClickListener(v -> startListening());
-        
-        // Request permissions for Call and Camera
-        checkPermissions();
+        // The Microphone Button in your activity_main.xml
+        Button btnTalk = findViewById(R.id.btnTalk);
+        btnTalk.setOnClickListener(v -> startVoiceRecognition());
     }
 
-    private void startListening() {
+    private void startVoiceRecognition() {
         Intent intent = new Intent(RecognizerIntent.ACTION_RECOGNIZE_SPEECH);
         intent.putExtra(RecognizerIntent.EXTRA_LANGUAGE_MODEL, RecognizerIntent.LANGUAGE_MODEL_FREE_FORM);
-        intent.putExtra(RecognizerIntent.EXTRA_PROMPT, "Buddy is listening, Master...");
-        startActivityForResult(intent, VOICE_CODE);
+        
+        // Setup for Bilingual (Hindi + English)
+        intent.putExtra(RecognizerIntent.EXTRA_LANGUAGE, "en-IN");
+        intent.putExtra(RecognizerIntent.EXTRA_SUPPORTED_LANGUAGES, "hi-IN");
+        intent.putExtra(RecognizerIntent.EXTRA_PROMPT, "Listening... बोलिए...");
+
+        try {
+            startActivityForResult(intent, REQUEST_CODE_SPEECH_INPUT);
+        } catch (Exception e) {
+            Toast.makeText(this, "Voice recognition not supported", Toast.LENGTH_SHORT).show();
+        }
     }
 
     @Override
-    protected void onActivityResult(int requestCode, int resultCode, @Nullable Intent data) {
+    protected void onActivityResult(int requestCode, int resultCode, Intent data) {
         super.onActivityResult(requestCode, resultCode, data);
-        if (requestCode == VOICE_CODE && resultCode == RESULT_OK && data != null) {
+
+        if (requestCode == REQUEST_CODE_SPEECH_INPUT && resultCode == RESULT_OK && data != null) {
             ArrayList<String> result = data.getStringArrayListExtra(RecognizerIntent.EXTRA_RESULTS);
-            handleCommand(result.get(0).toLowerCase());
-        }
-    }
-
-    private void handleCommand(String cmd) {
-        // 1. TIME AND DATE
-        if (cmd.contains("time") || cmd.contains("date")) {
-            String currentTime = new SimpleDateFormat("hh:mm a, EEEE, dd MMMM", Locale.getDefault()).format(new Date());
-            speak("Master, it is currently " + currentTime);
-        }
-
-        // 2. BATTERY
-        else if (cmd.contains("battery") || cmd.contains("power")) {
-            Intent batteryStatus = registerReceiver(null, new IntentFilter(Intent.ACTION_BATTERY_CHANGED));
-            int level = batteryStatus.getIntExtra(BatteryManager.EXTRA_LEVEL, -1);
-            speak("Master, your battery is at " + level + " percent.");
-        }
-
-        // 3. LOCK SCREEN
-        else if (cmd.contains("lock") || cmd.contains("sleep")) {
-            DevicePolicyManager dpm = (DevicePolicyManager) getSystemService(Context.DEVICE_POLICY_SERVICE);
-            ComponentName admin = new ComponentName(this, AdminReceiver.class);
-            if (dpm.isAdminActive(admin)) {
-                speak("As you wish, Master.");
-                dpm.lockNow();
-            } else {
-                speak("Master, please enable device admin permissions first.");
+            if (result != null && !result.isEmpty()) {
+                handleCommand(result.get(0));
             }
         }
-
-        // 4. CAMERA & PHOTOS
-        else if (cmd.contains("camera") || cmd.contains("photo") || cmd.contains("selfie")) {
-            speak("Opening the camera, Master.");
-            Intent cameraIntent = new Intent(MediaStore.INTENT_ACTION_STILL_IMAGE_CAMERA);
-            startActivity(cameraIntent);
-        }
-
-        // 5. CALLING (Example:CALL BY NAME COMMAND)
-        // 
-else if (command.contains("call")) {
-    // This removes the word "call" to leave just the name (e.g., "call Mom" -> "Mom")
-    String contactName = command.replace("call", "").trim();
-    
-    if (!contactName.isEmpty()) {
-        speak("Searching for " + contactName + " in your contacts, Master.");
-        
-        // This opens the phone dialer and searches for the name
-        Intent intent = new Intent(Intent.ACTION_VIEW);
-        intent.setData(Uri.parse("tel:" + Uri.encode(contactName)));
-        startActivity(intent);
-    } else {
-        speak("Master, who should I call?");
     }
-}
 
+    private void handleCommand(String command) {
+        String cmd = command.toLowerCase();
 
-        // 6. OPEN APPS BY NAME (Example: "Open YouTube", "Open WhatsApp")
-        else if (cmd.contains("open")) {
-            String appName = cmd.replace("open ", "").trim();
-            speak("Opening " + appName + " for you, Master.");
-            openApp(appName);
+        // --- 1. HELLO / GREETINGS ---
+        if (cmd.contains("hello") || cmd.contains("namaste") || cmd.contains("नमस्ते")) {
+            speak("Namaste Master! I am Buddy. How can I help you?");
         }
 
-        // 7. GREETING
-        else if (cmd.contains("hello") || cmd.contains("hi")) {
-            speak("Hello Master, I am Buddy. I am ready for your commands.");
+        // --- 2. LOCK PHONE ---
+        else if (cmd.contains("lock") || cmd.contains("sleep") || cmd.contains("band kar") || cmd.contains("tala")) {
+            processLockRequest();
+        }
+
+        // --- 3. BATTERY PERCENTAGE ---
+        else if (cmd.contains("battery") || cmd.contains("charge")) {
+            BatteryManager bm = (BatteryManager) getSystemService(BATTERY_SERVICE);
+            int percentage = bm.getIntProperty(BatteryManager.BATTERY_PROPERTY_CAPACITY);
+            speak("Master, your battery is at " + percentage + " percent.");
+        }
+
+        // --- 4. OPEN CAMERA ---
+        else if (cmd.contains("camera") || cmd.contains("photo") || cmd.contains("camera kholo")) {
+            speak("Opening camera, Master.");
+            Intent intent = new Intent(MediaStore.ACTION_IMAGE_CAPTURE);
+            startActivity(intent);
+        }
+
+        // --- 5. FALLBACK ---
+        else {
+            speak("I heard " + command + ", but I don't know how to do that yet.");
         }
     }
 
-    private void openApp(String name) {
-        // Simple logic to find apps by name
-        PackageManager pm = getPackageManager();
-        for (android.content.pm.ApplicationInfo app : pm.getInstalledApplications(0)) {
-            if (pm.getApplicationLabel(app).toString().toLowerCase().contains(name)) {
-                Intent launchIntent = pm.getLaunchIntentForPackage(app.packageName);
-                if (launchIntent != null) startActivity(launchIntent);
-                return;
-            }
+    private void processLockRequest() {
+        DevicePolicyManager dpm = (DevicePolicyManager) getSystemService(Context.DEVICE_POLICY_SERVICE);
+        ComponentName adminComponent = new ComponentName(this, AdminReceiver.class);
+
+        if (dpm.isAdminActive(adminComponent)) {
+            speak("Locking the device now.");
+            dpm.lockNow();
+        } else {
+            speak("I need admin permission to lock the screen. Please activate it.");
+            Intent intent = new Intent(DevicePolicyManager.ACTION_ADD_DEVICE_ADMIN);
+            intent.putExtra(DevicePolicyManager.EXTRA_DEVICE_ADMIN, adminComponent);
+            startActivity(intent);
         }
-        speak("I couldn't find an app named " + name + ", Master.");
     }
 
     private void speak(String text) {
-        buddyVoice.speak(text, TextToSpeech.QUEUE_FLUSH, null, null);
+        tts.speak(text, TextToSpeech.QUEUE_FLUSH, null, null);
     }
 
-    private void checkPermissions() {
-        if (ContextCompat.checkSelfPermission(this, Manifest.permission.CALL_PHONE) != PackageManager.PERMISSION_GRANTED) {
-            ActivityCompat.requestPermissions(this, new String[]{Manifest.permission.CALL_PHONE, Manifest.permission.CAMERA}, 1);
+    @Override
+    protected void onDestroy() {
+        if (tts != null) {
+            tts.stop();
+            tts.shutdown();
         }
+        super.onDestroy();
     }
 }
+
+    
