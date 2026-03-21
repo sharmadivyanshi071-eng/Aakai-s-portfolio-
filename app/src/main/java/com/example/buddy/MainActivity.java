@@ -1,4 +1,6 @@
 package com.example.buddy;
+
+import android.app.Activity;
 import android.app.Activity;
 import android.app.admin.DevicePolicyManager;
 import android.content.ComponentName;
@@ -16,7 +18,10 @@ import java.util.ArrayList;
 import java.util.Locale;
 
 public class MainActivity extends Activity {
+public class MainActivity extends Activity {
 
+    private TextToSpeech tts;
+    private static final int REQUEST_CODE_SPEECH_INPUT = 100;
     private TextToSpeech tts;
     private static final int REQUEST_CODE_SPEECH_INPUT = 100;
 
@@ -39,6 +44,7 @@ public class MainActivity extends Activity {
     }
 
     private void startVoiceRecognition() {
+    private void startVoiceRecognition() {
         Intent intent = new Intent(RecognizerIntent.ACTION_RECOGNIZE_SPEECH);
         intent.putExtra(RecognizerIntent.EXTRA_LANGUAGE_MODEL, RecognizerIntent.LANGUAGE_MODEL_FREE_FORM);
         
@@ -56,7 +62,10 @@ public class MainActivity extends Activity {
 
     @Override
     protected void onActivityResult(int requestCode, int resultCode, Intent data) {
+    protected void onActivityResult(int requestCode, int resultCode, Intent data) {
         super.onActivityResult(requestCode, resultCode, data);
+
+        if (requestCode == REQUEST_CODE_SPEECH_INPUT && resultCode == RESULT_OK && data != null) {
 
         if (requestCode == REQUEST_CODE_SPEECH_INPUT && resultCode == RESULT_OK && data != null) {
             ArrayList<String> result = data.getStringArrayListExtra(RecognizerIntent.EXTRA_RESULTS);
@@ -79,16 +88,11 @@ public class MainActivity extends Activity {
             processLockRequest();
         }
 
-        // 3. LOCK SCREEN
-        else if (cmd.contains("lock") || cmd.contains("sleep")) {
-            DevicePolicyManager dpm = (DevicePolicyManager) getSystemService(Context.DEVICE_POLICY_SERVICE);
-            ComponentName admin = new ComponentName(this, AdminReceiver.class);
-            if (dpm.isAdminActive(admin)) {
-                speak("As you wish, Master.");
-                dpm.lockNow();
-            } else {
-                speak("Master, please enable device admin permissions first.");
-            }
+        // --- 3. BATTERY PERCENTAGE ---
+        else if (cmd.contains("battery") || cmd.contains("charge")) {
+            BatteryManager bm = (BatteryManager) getSystemService(BATTERY_SERVICE);
+            int percentage = bm.getIntProperty(BatteryManager.BATTERY_PROPERTY_CAPACITY);
+            speak("Master, your battery is at " + percentage + " percent.");
         }
 
         // 4. CAMERA
@@ -121,8 +125,14 @@ public class MainActivity extends Activity {
 
     private void speak(String text) {
         tts.speak(text, TextToSpeech.QUEUE_FLUSH, null, null);
+        tts.speak(text, TextToSpeech.QUEUE_FLUSH, null, null);
     }
 
+    @Override
+    protected void onDestroy() {
+        if (tts != null) {
+            tts.stop();
+            tts.shutdown();
     @Override
     protected void onDestroy() {
         if (tts != null) {
